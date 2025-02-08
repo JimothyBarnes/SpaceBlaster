@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Co-op: Spaceship vs Asteroids & Mines with Enhanced Visuals</title>
+  <!-- Include a futuristic font from Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* Background: starry moving background overlay */
+    body {
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+      background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+      cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32'><circle cx='16' cy='16' r='10' stroke='yellow' stroke-width='2' fill='none'/><line x1='16' y1='0' x2='16' y2='32' stroke='yellow' stroke-width='2'/><line x1='0' y1='16' x2='32' y2='16' stroke='yellow' stroke-width='2'/></svg>") 16 16, auto;
+      position: relative;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(white, transparent);
+      opacity: 0.05;
+      animation: moveStars 60s linear infinite;
+      z-index: -2;
+    }
+    @keyframes moveStars {
+      from { transform: translateY(0); }
+      to { transform: translateY(-500px); }
+    }
+    
+    /* Awesome Scoreboard styling */
+    #scoreboard {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 24px;
+      color: #fff;
+      background: linear-gradient(90deg, rgba(30,136,229,0.9), rgba(30,118,233,0.9));
+      border: 2px solid rgba(30,136,229,1);
+      border-radius: 10px;
+      padding: 15px 20px;
+      box-shadow: 0 0 15px rgba(30,136,229,0.8);
+      text-align: left;
+      z-index: 2000;
+    }
+    #scoreboard div {
+      margin: 5px 0;
+      text-shadow: 0 0 8px rgba(30,136,229,0.9);
+    }
+    
+    /* Game Over Overlay with Restart Button */
+    #gameOverMessage {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.85);
+      color: #fff;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 3000;
+      display: none;
+    }
+    #restartButton {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 24px;
+      font-family: 'Orbitron', sans-serif;
+      background: linear-gradient(90deg, rgba(30,136,229,0.9), rgba(30,118,233,0.9));
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(30,136,229,0.8);
+      transition: background 0.3s, transform 0.2s;
+    }
+    #restartButton:hover {
+      background: linear-gradient(90deg, rgba(30,118,233,0.95), rgba(30,136,229,0.95));
+      transform: scale(1.05);
+    }
+    
+    /* Spaceship styling (blue ship) with subtle pulsation on acceleration */
+    #shipKeyboard {
+      position: absolute;
+      width: 40px;
+      height: 60px;
+      background: linear-gradient(to top, #1f8ef1, #1e88e5);
+      clip-path: polygon(50% 0%, 100% 70%, 50% 100%, 0% 70%);
+      transform: translate(-50%, -50%);
+      z-index: 1000;
+      box-shadow: 0 0 15px rgba(30,136,229,0.9);
+      position: relative;
+      filter: drop-shadow(0 0 8px #1e88e5);
+      transition: transform 0.1s;
+    }
+    /* Thruster flame with flicker effect */
+    @keyframes flameFlicker {
+      0%, 100% { opacity: 0.8; }
+      50% { opacity: 1; }
+    }
+    #thruster {
+      position: absolute;
+      bottom: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 10px;
+      height: 20px;
+      background: linear-gradient(to top, rgba(255,165,0,1), rgba(255,69,0,1));
+      border-radius: 50%;
+      opacity: 0;
+      animation: flameFlicker 0.2s infinite;
+      pointer-events: none;
+    }
+    /* Fading light trail behind the ship */
+    .trail {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background: rgba(255,255,255,0.8);
+      border-radius: 50%;
+      pointer-events: none;
+      filter: blur(2px);
+      animation: fadeTrail 0.8s forwards;
+      z-index: 900;
+    }
+    @keyframes fadeTrail {
+      from { opacity: 1; transform: scale(1); }
+      to { opacity: 0; transform: scale(2.5); }
+    }
+    /* Asteroid styling: rugged with slow rotation */
+    @keyframes asteroidSpin {
+      from { transform: translate(-50%, -50%) rotate(0deg); }
+      to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+    .asteroid {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      background: radial-gradient(circle at 30% 30%, #666, #222);
+      clip-path: polygon(50% 0%, 70% 15%, 100% 40%, 85% 80%, 50% 100%, 15% 80%, 0% 40%, 30% 15%);
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 10px rgba(0,0,0,0.6);
+      animation: asteroidSpin 20s linear infinite;
+      transition: transform 0.3s;
+    }
+    /* Hazard (mine) styling: pulsing, glowing, and with a strong drop-shadow */
+    @keyframes pulse {
+      0% { transform: translate(-50%, -50%) scale(1); }
+      50% { transform: translate(-50%, -50%) scale(1.15); }
+      100% { transform: translate(-50%, -50%) scale(1); }
+    }
+    .hazard {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      background: radial-gradient(circle at 30% 30%, #ff4444, #aa0000);
+      clip-path: polygon(50% 0%, 80% 20%, 100% 50%, 80% 80%, 50% 100%, 20% 80%, 0% 50%, 20% 20%);
+      transform: translate(-50%, -50%);
+      z-index: 1500;
+      cursor: pointer;
+      animation: pulse 1s infinite;
+      box-shadow: 0 0 20px rgba(255,0,0,0.9);
+      filter: drop-shadow(0 0 10px red);
+    }
+    /* Projectile styling: with extra glowing drop-shadow */
+    .projectile {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #fffa00, #ff8c00);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      filter: drop-shadow(0 0 8px rgba(255,200,0,0.9));
+    }
+    /* Explosion effect styling: cinematic shockwave with blur */
+    .explosion {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      background: radial-gradient(circle, rgba(255,200,0,1) 0%, rgba(255,0,0,0) 70%);
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      z-index: 1800;
+      animation: explode 0.5s forwards;
+      filter: blur(3px);
+    }
+    @keyframes explode {
+      from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      to { opacity: 0; transform: translate(-50%, -50%) scale(3); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Scoreboard -->
+  <div id="scoreboard">
+    <div>Score (Asteroids Destroyed): <span id="score">0</span></div>
+    <div>Hazards Removed: <span id="hazardsRemoved">0</span></div>
+  </div>
+  
+  <!-- Game Over Overlay with Restart Button -->
+  <div id="gameOverMessage">
+    <div>Game Over</div>
+    <button id="restartButton">Restart</button>
+  </div>
+  
+  <!-- The game elements are created dynamically via JavaScript below -->
+  
+  <script>
+    /***********************
+     * Global Variables & Sound Setup
+     ***********************/
+    let gameOver = false;
+    const SPACESHIP_RADIUS = 20; // Approximate collision radius for the ship
+
+    // Arrays for game objects
+    const asteroids = [];
+    const hazards = [];
+    const projectiles = [];
+
+    // Scoring variables
+    let score = 0;
+    let hazardsRemoved = 0;
+
+    // Sound effects (update the file names/paths as needed)
+    const explosionSound = new Audio('explosion.mp3');
+    const shootSound = new Audio('shoot.mp3');
+    const thrusterSound = new Audio('thruster.mp3');
+    const hazardRemoveSound = new Audio('hazard_remove.mp3');
+    thrusterSound.loop = true; // Loop thruster sound while accelerating
+
+    /***********************
+     * Spaceship (Keyboard Controlled)
+     ***********************/
+    const ship = {
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2,
+      angle: 0,    // 0 radians means the ship faces upward
+      vx: 0,
+      vy: 0,
+      acceleration: 0.2,
+      friction: 0.99,
+      rotationSpeed: 0.08,
+      element: null,
+      thruster: null
+    };
+
+    // Create the spaceship element and add it to the DOM
+    ship.element = document.createElement('div');
+    ship.element.id = 'shipKeyboard';
+    document.body.appendChild(ship.element);
+
+    // Create and append the thruster element to the spaceship
+    const thruster = document.createElement('div');
+    thruster.id = 'thruster';
+    ship.element.appendChild(thruster);
+    ship.thruster = thruster;
+
+    /***********************
+     * Trail Effect Variables & Function
+     ***********************/
+    let lastTrailTime = 0;
+    function createTrail() {
+      const trailElem = document.createElement('div');
+      trailElem.classList.add('trail');
+      // Position the trail behind the ship (offset by 20px)
+      const offset = 20;
+      const trailX = ship.x - offset * Math.sin(ship.angle);
+      const trailY = ship.y + offset * Math.cos(ship.angle);
+      trailElem.style.left = trailX + "px";
+      trailElem.style.top = trailY + "px";
+      document.body.appendChild(trailElem);
+      // The trail element will be removed automatically when its animation ends (0.8s)
+    }
+
+    /***********************
+     * Input Handling (Keyboard)
+     ***********************/
+    const keys = {};
+    document.addEventListener('keydown', function(e) {
+      if (gameOver) return;
+      // Press SPACE to shoot a projectile
+      if (e.code === "Space") {
+        shootProjectile();
+      }
+      keys[e.key] = true;
+    });
+    document.addEventListener('keyup', function(e) {
+      keys[e.key] = false;
+    });
+
+    /***********************
+     * Projectile Function
+     ***********************/
+    function shootProjectile() {
+      // Play shoot sound
+      shootSound.currentTime = 0;
+      shootSound.play();
+      
+      // Calculate the tip of the ship (assumed to be 30px from the center)
+      const tipDistance = 30;
+      const projX = ship.x + tipDistance * Math.sin(ship.angle);
+      const projY = ship.y - tipDistance * Math.cos(ship.angle);
+      
+      const projElem = document.createElement('div');
+      projElem.classList.add('projectile');
+      projElem.style.left = projX + "px";
+      projElem.style.top = projY + "px";
+      document.body.appendChild(projElem);
+      
+      const projectileSpeed = 8;
+      projectiles.push({
+        element: projElem,
+        x: projX,
+        y: projY,
+        vx: Math.sin(ship.angle) * projectileSpeed,
+        vy: -Math.cos(ship.angle) * projectileSpeed,
+        radius: 4
+      });
+    }
+
+    /***********************
+     * Asteroid Functions
+     ***********************/
+    // Spawn an asteroid at a random screen edge
+    function spawnAsteroid() {
+      let x, y, vx, vy;
+      const speed = Math.random() * 2 + 1; // Speed between 1 and 3
+      const edge = Math.floor(Math.random() * 4);
+      if (edge === 0) { // top
+        x = Math.random() * window.innerWidth;
+        y = -25;
+        vx = (Math.random() - 0.5) * 2;
+        vy = speed;
+      } else if (edge === 1) { // right
+        x = window.innerWidth + 25;
+        y = Math.random() * window.innerHeight;
+        vx = -speed;
+        vy = (Math.random() - 0.5) * 2;
+      } else if (edge === 2) { // bottom
+        x = Math.random() * window.innerWidth;
+        y = window.innerHeight + 25;
+        vx = (Math.random() - 0.5) * 2;
+        vy = -speed;
+      } else { // left
+        x = -25;
+        y = Math.random() * window.innerHeight;
+        vx = speed;
+        vy = (Math.random() - 0.5) * 2;
+      }
+      
+      const asteroidElem = document.createElement('div');
+      asteroidElem.classList.add('asteroid');
+      asteroidElem.style.left = x + "px";
+      asteroidElem.style.top = y + "px";
+      document.body.appendChild(asteroidElem);
+      
+      asteroids.push({
+        element: asteroidElem,
+        x: x,
+        y: y,
+        vx: vx,
+        vy: vy,
+        radius: 25
+      });
+    }
+    
+    // Spawn an asteroid at a specific (x, y) coordinate
+    function spawnAsteroidAt(x, y) {
+      const vx = (Math.random() - 0.5) * 6;
+      const vy = (Math.random() - 0.5) * 6;
+      const asteroidElem = document.createElement('div');
+      asteroidElem.classList.add('asteroid');
+      asteroidElem.style.left = x + "px";
+      asteroidElem.style.top = y + "px";
+      document.body.appendChild(asteroidElem);
+      asteroids.push({
+        element: asteroidElem,
+        x: x,
+        y: y,
+        vx: vx,
+        vy: vy,
+        radius: 25
+      });
+    }
+
+    /***********************
+     * Hazard (Mine) Functions
+     ***********************/
+    // Spawn a hazard (mine) from a random screen edge
+    function spawnHazard() {
+      let x, y, vx, vy;
+      const speed = Math.random() * 1.5 + 0.5; // Slightly slower than asteroids
+      const edge = Math.floor(Math.random() * 4);
+      if (edge === 0) { // top
+        x = Math.random() * window.innerWidth;
+        y = -25;
+        vx = (Math.random() - 0.5) * 1.5;
+        vy = speed;
+      } else if (edge === 1) { // right
+        x = window.innerWidth + 25;
+        y = Math.random() * window.innerHeight;
+        vx = -speed;
+        vy = (Math.random() - 0.5) * 1.5;
+      } else if (edge === 2) { // bottom
+        x = Math.random() * window.innerWidth;
+        y = window.innerHeight + 25;
+        vx = (Math.random() - 0.5) * 1.5;
+        vy = -speed;
+      } else { // left
+        x = -25;
+        y = Math.random() * window.innerHeight;
+        vx = speed;
+        vy = (Math.random() - 0.5) * 1.5;
+      }
+      
+      const hazardElem = document.createElement('div');
+      hazardElem.classList.add('hazard');
+      hazardElem.style.left = x + "px";
+      hazardElem.style.top = y + "px";
+      document.body.appendChild(hazardElem);
+      
+      // Create the hazard object
+      const hazard = {
+        element: hazardElem,
+        x: x,
+        y: y,
+        vx: vx,
+        vy: vy,
+        radius: 25
+      };
+      hazards.push(hazard);
+      
+      // Allow the mouse player to remove a hazard by clicking on it.
+      hazardElem.addEventListener('click', function(e) {
+        e.stopPropagation();
+        removeHazard(hazard);
+      });
+    }
+
+    // Recursive loop to spawn hazards with an interval that decreases over time.
+    // The minimum interval is set to 333ms (i.e. up to 3 mines per second).
+    let hazardSpawnInterval = 5000; // Start at 5000ms (5 seconds)
+    const hazardSpawnDecreaseRate = 100; // Decrease interval by 100ms per spawn
+    function spawnHazardLoop() {
+      if (gameOver) return;
+      spawnHazard();
+      hazardSpawnInterval = Math.max(333, hazardSpawnInterval - hazardSpawnDecreaseRate);
+      setTimeout(spawnHazardLoop, hazardSpawnInterval);
+    }
+    // Start the hazard loop.
+    spawnHazardLoop();
+
+    // Remove a hazard (when clicked by the mouse) and spawn multiple asteroids.
+    function removeHazard(hazard) {
+      // Play hazard removal sound
+      hazardRemoveSound.currentTime = 0;
+      hazardRemoveSound.play();
+      
+      createExplosion(hazard.x, hazard.y);
+      hazard.element.remove();
+      const index = hazards.indexOf(hazard);
+      if (index > -1) {
+        hazards.splice(index, 1);
+      }
+      hazardsRemoved++;
+      document.getElementById('hazardsRemoved').textContent = hazardsRemoved;
+      // Spawn between 1 and 4 regular asteroids at the location of the destroyed hazard.
+      const numAsteroids = Math.floor(Math.random() * 4) + 1;
+      for (let i = 0; i < numAsteroids; i++) {
+        spawnAsteroidAt(hazard.x, hazard.y);
+      }
+    }
+
+    /***********************
+     * Explosion Effect Function
+     ***********************/
+    function createExplosion(x, y) {
+      // Play explosion sound
+      explosionSound.currentTime = 0;
+      explosionSound.play();
+      
+      const explosionElem = document.createElement('div');
+      explosionElem.classList.add('explosion');
+      explosionElem.style.left = x + 'px';
+      explosionElem.style.top = y + 'px';
+      document.body.appendChild(explosionElem);
+      setTimeout(() => {
+        explosionElem.remove();
+      }, 500);
+    }
+
+    /***********************
+     * Main Update Loop
+     ***********************/
+    function update() {
+      if (gameOver) return;
+      
+      const now = Date.now();
+      // --- Create a light trail behind the ship when accelerating (spawn every ~50ms)
+      if (keys["ArrowUp"] && now - lastTrailTime > 50) {
+        createTrail();
+        lastTrailTime = now;
+      }
+      
+      // --- Update Asteroids ---
+      for (let asteroid of asteroids) {
+        asteroid.x += asteroid.vx;
+        asteroid.y += asteroid.vy;
+        
+        // Bounce off the screen boundaries.
+        if (asteroid.x - asteroid.radius < 0) {
+          asteroid.x = asteroid.radius;
+          asteroid.vx *= -1;
+        }
+        if (asteroid.x + asteroid.radius > window.innerWidth) {
+          asteroid.x = window.innerWidth - asteroid.radius;
+          asteroid.vx *= -1;
+        }
+        if (asteroid.y - asteroid.radius < 0) {
+          asteroid.y = asteroid.radius;
+          asteroid.vy *= -1;
+        }
+        if (asteroid.y + asteroid.radius > window.innerHeight) {
+          asteroid.y = window.innerHeight - asteroid.radius;
+          asteroid.vy *= -1;
+        }
+        asteroid.element.style.left = asteroid.x + "px";
+        asteroid.element.style.top = asteroid.y + "px";
+      }
+      
+      // --- Update Hazards ---
+      for (let hazard of hazards) {
+        hazard.x += hazard.vx;
+        hazard.y += hazard.vy;
+        
+        // Bounce off boundaries.
+        if (hazard.x - hazard.radius < 0) {
+          hazard.x = hazard.radius;
+          hazard.vx *= -1;
+        }
+        if (hazard.x + hazard.radius > window.innerWidth) {
+          hazard.x = window.innerWidth - hazard.radius;
+          hazard.vx *= -1;
+        }
+        if (hazard.y - hazard.radius < 0) {
+          hazard.y = hazard.radius;
+          hazard.vy *= -1;
+        }
+        if (hazard.y + hazard.radius > window.innerHeight) {
+          hazard.y = window.innerHeight - hazard.radius;
+          hazard.vy *= -1;
+        }
+        hazard.element.style.left = hazard.x + "px";
+        hazard.element.style.top = hazard.y + "px";
+        
+        // If a hazard collides with the spaceship, end the game.
+        const dx = hazard.x - ship.x;
+        const dy = hazard.y - ship.y;
+        const distance = Math.hypot(dx, dy);
+        if (distance < SPACESHIP_RADIUS + hazard.radius) {
+          gameOver = true;
+          document.getElementById('gameOverMessage').style.display = 'flex';
+          return;
+        }
+      }
+      
+      // --- Update Spaceship (Keyboard Player) ---
+      if (keys["ArrowLeft"]) {
+        ship.angle -= ship.rotationSpeed;
+      }
+      if (keys["ArrowRight"]) {
+        ship.angle += ship.rotationSpeed;
+      }
+      if (keys["ArrowUp"]) {
+        ship.vx += Math.sin(ship.angle) * ship.acceleration;
+        ship.vy -= Math.cos(ship.angle) * ship.acceleration;
+        // Slightly pulse the ship when accelerating
+        ship.element.style.transform = "translate(-50%, -50%) rotate(" + ship.angle + "rad) scale(1.05)";
+        // Show thruster flame and play thruster sound if not already playing.
+        ship.thruster.style.opacity = 1;
+        if (thrusterSound.paused) {
+          thrusterSound.currentTime = 0;
+          thrusterSound.play();
+        }
+      } else {
+        ship.element.style.transform = "translate(-50%, -50%) rotate(" + ship.angle + "rad) scale(1)";
+        ship.thruster.style.opacity = 0;
+        // Pause the thruster sound if the up arrow is not pressed.
+        if (!thrusterSound.paused) {
+          thrusterSound.pause();
+          thrusterSound.currentTime = 0;
+        }
+      }
+      ship.vx *= ship.friction;
+      ship.vy *= ship.friction;
+      ship.x += ship.vx;
+      ship.y += ship.vy;
+      // Keep the spaceship within the viewport.
+      if (ship.x < 0) ship.x = 0;
+      if (ship.x > window.innerWidth) ship.x = window.innerWidth;
+      if (ship.y < 0) ship.y = 0;
+      if (ship.y > window.innerHeight) ship.y = window.innerHeight;
+      
+      ship.element.style.left = ship.x + "px";
+      ship.element.style.top = ship.y + "px";
+      
+      // --- Update Projectiles ---
+      for (let i = projectiles.length - 1; i >= 0; i--) {
+        const proj = projectiles[i];
+        proj.x += proj.vx;
+        proj.y += proj.vy;
+        proj.element.style.left = proj.x + "px";
+        proj.element.style.top = proj.y + "px";
+        
+        // Remove the projectile if it goes offscreen.
+        if (
+          proj.x < 0 || proj.x > window.innerWidth ||
+          proj.y < 0 || proj.y > window.innerHeight
+        ) {
+          proj.element.remove();
+          projectiles.splice(i, 1);
+          continue;
+        }
+        
+        // Check for collisions with asteroids.
+        for (let j = asteroids.length - 1; j >= 0; j--) {
+          const asteroid = asteroids[j];
+          const dx = proj.x - asteroid.x;
+          const dy = proj.y - asteroid.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < asteroid.radius + proj.radius) {
+            createExplosion(asteroid.x, asteroid.y);
+            asteroid.element.remove();
+            asteroids.splice(j, 1);
+            proj.element.remove();
+            projectiles.splice(i, 1);
+            score++;
+            document.getElementById('score').textContent = score;
+            break;
+          }
+        }
+      }
+      
+      requestAnimationFrame(update);
+    }
+    
+    // Start the game loop.
+    update();
+
+    // Restart button: reload the page
+    document.getElementById('restartButton').addEventListener('click', function(){
+      location.reload();
+    });
+  </script>
+
+</body>
+</html>
